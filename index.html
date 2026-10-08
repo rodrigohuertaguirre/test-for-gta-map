@@ -3,8 +3,83 @@
 <head>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <style>
-        #map {position: absolute; top: 0; bottom: 0; left: 0; right: 0}
+   <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+    <script src="leaflet-choropleth-gh-pages/dist/choropleth.js"></script>
+    <script src="FULLMAP copy.js"></script>
+   <style>
+        #map {position: absolute; top: 0; bottom: 0; left: 0; right: 0; background:#0b1d3a;}
+        .info-box {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 10px 12px;
+        border-radius: 6px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        width: 230px;
+        max-height: 90vh;
+        overflow-y: auto;
+        font: 14px Arial, sans-serif;
+        }
+        .ward-label {
+        background: none;
+        border: none;
+        box-shadow: none;
+        font-size: 11px;
+        font-weight: bold;
+        color: #000;
+        text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+        }   
+        .leaflet-interactive:focus {
+        outline: none;
+        }
+        .city-label {
+        transform: translate(-50%, -50%);
+        background: rgba(20, 20, 20, 0.85);
+        color: #fff;
+        font: bold 15px Arial, sans-serif;
+        padding: 6px 14px;
+        border-radius: 16px;
+        border: 2px solid #fff;
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+        white-space: nowrap;
+        cursor: pointer;
+        }
+        .region-bar, .stories-box {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 6px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            font: 14px Arial, sans-serif;
+        }
+        .region-bar { padding: 6px; }
+        .region-bar button {
+            display: block;
+            width: 110px;
+            margin: 3px 0;
+            padding: 6px;
+            border: 1px solid #999;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+        }
+        .region-bar button.active { background: #222; color: #fff; }
+        .stories-box {
+            width: 260px;
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+            padding: 10px 12px;
+        }
+        .stories-box h3 { margin: 0 24px 8px 0; font-size: 15px; }
+        .stories-box ul { margin: 0; padding-left: 18px; }
+        .stories-box li { margin-bottom: 6px; }
+        .stories-close {
+            float: right;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+        }
+        .stories-city {
+        font-weight: bold;
+        color: #555;
+        margin: 10px 0 4px;
+        }
     </style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,10 +88,987 @@
 <body>
     <div id = "map"></div>
     <script>
-        var map = L.map('map').setView([43.685768, -79.543210], 11);
+        var map = L.map('map', { maxBoundsViscosity: 1.0, zoomSnap: 0.35, zoomDelta: 0.5 }).setView([43.6889, -79.50001], 10);
         L.tileLayer('https://api.maptiler.com/maps/openstreetmap/{z}/{x}/{y}.jpg?key=FnGqb3DPeNw8JPlWELCU', {
-            attribution: '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
+            opacity: 0.5,
+            attribution: '<a href="https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E" target="_blank">Statistics Canada, 2021 Census of Population</a> <a href="https://www.toronto.ca/" target="_blank">&copy; City of Toronto</a> <a href="https://www.mississauga.ca/" target="_blank">&copy; City of Mississauga</a> <a href="https://www.brampton.ca/" target="_blank">&copy; City of Brampton</a> <a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
         }).addTo(map);
-    </script> 
+            var extraInfo = {
+                        "TO - Etobicoke North": {
+                            councillor: "Councillor Vincent Crisanti",
+                            photo: { src: "councillor photos/toronto/W1 Vincent Crisanti.jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 24%",
+                            listtitle: "<u>Top 5 countries of birth</u>",
+                            list: [
+                                "India: 12,825",
+                                "Jamaica: 4,560",
+                                "Philippines: 4,370",
+                                "Iraq: 4,315",
+                                "Guyana: 3,635"
+                            ]
+                        },
+                        "TO - Etobicoke Centre": {
+                            councillor: "Councillor Stephen Holyday",
+                            photo: { src: "councillor photos/toronto/W2 Stephen Holyday .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 30%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Italy: 3,195",
+                                "Ukraine: 2,860",
+                                "Poland: 2,795",
+                                "India: 2,575",
+                                "Philippines: 2,440"
+                            ]
+                        },
+                        "TO - Etobicoke-Lakeshore": {
+                            councillor: "Councillor Amber Morley",
+                            photo: { src: "councillor photos/toronto/W3 Amber Morley .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 33%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "India: 5,645",
+                                "Poland: 4,235",
+                                "Ukraine: 3,310",
+                                "Philippines: 3,295",
+                                "United Kingdom: 2,475"
+                            ]
+                        },"TO - Parkdale-High Park": {
+                            councillor: "Councillor Gord Perks",
+                            photo: { src: "councillor photos/toronto/W4 Gord Perks .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 38%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "India: 2,425",
+                                "Poland: 2,290",
+                                "United Kingdom: 2,120",
+                                "Philippines: 1,935",
+                                "United States: 1,440"
+                            ]
+                        },"TO - York South-Weston": {
+                            councillor: "Councillor Frances Nunziata",
+                            photo: { src: "councillor photos/toronto/W5 Frances Nunziata .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 28%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Portugal: 7,180",
+                                "Philippines: 6,125",
+                                "Jamaica: 4,925",
+                                "Italy: 4,350",
+                                "Vietnam: 3,725"
+                            ]
+                        },"TO - York Centre": {
+                            councillor: "Councillor James Pasternak",
+                            photo: { src: "councillor photos/toronto/W6 James Pasternak .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 25%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Philippines: 16,760",
+                                "Italy: 4,475",
+                                "Russia: 2,860",
+                                "Vietnam: 2,405",
+                                "Ukraine: 2,290"
+                            ]
+                        },"TO - Humber River-Black Creek": {
+                            councillor: "Councillor Anthony Perruzza",
+                            photo: { src: "councillor photos/toronto/W7 Anthony Perruzza .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 22%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Philippines: 7,360",
+                                "Vietnam: 6,815",
+                                "Italy: 5,470",
+                                "Jamaica: 4,685",
+                                "Guyana: 3,575"
+                            ]
+                        },"TO - Eglinton-Lawrence": {
+                            councillor: "Councillor Mike Colle",
+                            photo: { src: "councillor photos/toronto/W8 Mike Colle .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 32%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Philippines: 10,000",
+                                "Italy: 2,645",
+                                "United States: 2,115",
+                                "China: 1,805",
+                                "Portugal: 1,730"
+                            ]
+                        },"TO - Davenport": {
+                            councillor: "Councillor Alejandra Bravo",
+                            photo: { src: "councillor photos/toronto/W9 Alejandra Bravo .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 31%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Portugal: 10,920",
+                                "Italy: 2,760",
+                                "Philippines: 2,155",
+                                "China: 2,055",
+                                "Vietnam: 1,775"
+                            ]
+                        },"TO - Spadina-Fort York": {
+                            councillor: "Councillor Ausma Malik",
+                            photo: { src: "councillor photos/toronto/W10 Ausma Malik .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 24%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "China: 8,430",
+                                "India: 6,680",
+                                "Philippines: 2,210",
+                                "United Kingdom: 2,075",
+                                "Iran: 1,940"
+                            ]
+                        },"TO - University-Rosedale": {
+                            councillor: "Councillor Diane Saxe",
+                            photo: { src: "councillor photos/toronto/W11 Dianne Saxe .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 32%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "China: 5,365",
+                                "United States: 2,195",
+                                "Portugal: 2,135",
+                                "United Kingdom: 2,100",
+                                "India: 1,920"
+                            ]
+                        },"TO - Toronto-St. Paul's": {
+                            councillor: "Councillor Josh Matlow",
+                            photo: { src: "councillor photos/toronto/W12 Josh Matlow .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 34%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Philippines: 3,930",
+                                "India: 2,920",
+                                "United Kingdom: 2,220",
+                                "China: 2,000",
+                                "United States: 1,895"
+                            ]
+                        },"TO - Toronto Centre": {
+                            councillor: "Councillor Chris Moise",
+                            photo: { src: "councillor photos/toronto/W13 Chris Moise .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 29%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "China: 5,380",
+                                "Philippines: 4,545",
+                                "India: 4,430",
+                                "United Kingdom: 1,885",
+                                "South Korea: 1,590"
+                            ]
+                        },"TO - Toronto-Danforth": {
+                            councillor: "Councillor Paula Fletcher",
+                            photo: { src: "councillor photos/toronto/W14 Paula Fletcher .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 36%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "China: 4,370",
+                                "Greece: 2,675",
+                                "United Kingdom: 2,205",
+                                "Philippines: 1,835",
+                                "Vietnam: 1,585"
+                            ]
+                        },"TO - Don Valley West": {
+                            councillor: "Councillor Rachel Chernos Lin <em>(elected in 2024 by-election)</em>",
+                            photo: { src: "councillor photos/toronto/W15 Rachel Chernos Lin .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 33%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "China: 4,795",
+                                "Pakistan: 3,890",
+                                "Iran: 2,900",
+                                "Philippines: 2,700",
+                                "India: 2,570"
+                            ]
+                        },"TO - Don Valley East": {
+                            councillor: "Councillor Jon Burnside",
+                            photo: { src: "councillor photos/toronto/W16 Jon Burnside .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 31%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Philippines: 5,690",
+                                "India: 4,265",
+                                "China: 2,985",
+                                "Pakistan: 2,490",
+                                "Afghanistan: 2,195"
+                            ]
+                        },"TO - Don Valley North": {
+                            councillor: "Councillor Shelley Carroll",
+                            photo: { src: "councillor photos/toronto/W17 Shelley Carroll .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 27%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "China: 15,715",
+                                "Iran: 6,705",
+                                "India: 5,540",
+                                "Hong Kong: 5,220",
+                                "Philippines: 4,605"
+                            ]
+                        },"TO - Willowdale": {
+                            councillor: "Councillor Lily Cheng",
+                            photo: { src: "councillor photos/toronto/W18 Lily Cheng .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 29%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "China: 12,300",
+                                "Iran: 10,705",
+                                "South Korea: 7,930",
+                                "Philippines: 6,345",
+                                "Hong Kong: 4,295"
+                            ]
+                        },"TO - Beaches-East York": {
+                            councillor: "Councillor Brad Bradford",
+                            photo: { src: "councillor photos/toronto/W19 Brad Bradford .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 26%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Bangladesh: 2,760",
+                                "United Kingdom: 2,720",
+                                "Philippines: 2,710",
+                                "India: 2,030",
+                                "China: 1,725"
+                            ]
+                        },"TO - Scarborough Southwest": {
+                            councillor: "Councillor Parthi Kandavel <em>(elected in 2023 by-election)</em>",
+                            photo: { src: "councillor photos/toronto/W20 Parthi Kandavel .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 32%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Bangladesh: 8,095",
+                                "Philippines: 7,370",
+                                "India: 3,165",
+                                "China: 2,550",
+                                "Sri Lanka: 2,535"
+                            ]
+                        },"TO - Scarborough Centre": {
+                            councillor: "Councillor Michael Thompson",
+                            photo: { src: "councillor photos/toronto/W21 Michael Thompson .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 26%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Philippines: 11,515",
+                                "Sri Lanka: 6,450",
+                                "India: 6,190",
+                                "China: 4,260",
+                                "Guyana: 2,735"
+                            ]
+                        },"TO - Scarborough-Agincourt": {
+                            councillor: "Councillor Nick Mantas",
+                            photo: { src: "councillor photos/toronto/W22 Nick Mantas .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 26%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "China: 23,345",
+                                "Hong Kong: 6,300",
+                                "Philippines: 5,295",
+                                "India: 3,690",
+                                "Sri Lanka: 3,515"
+                            ]
+                        },"TO - Scarborough-North": {
+                            councillor: "Councillor Jamaal Myers",
+                            photo: { src: "councillor photos/toronto/W23 Jamaal Myers .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 25%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "China: 20,430",
+                                "Sri Lanka: 7,090",
+                                "Hong Kong: 5,555",
+                                "India: 5,530",
+                                "Philippines: 5,120"
+                            ]
+                        },"TO - Scarborough-Guildwood": {
+                            councillor: "Councillor Paul Ainslie",
+                            photo: { src: "councillor photos/toronto/W24 Paul Ainslie .jpg", credit: "Photo credit: City of Toronto" },
+                            turnout: "<strong>2022 Turnout:</strong> 27%",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "India: 9,560",
+                                "Philippines: 6,890",
+                                "Sri Lanka: 6,585",
+                                "Jamaica: 3,055",
+                                "Guyana: 2,925"
+                            ]
+                        },"TO - Scarborough-Rouge Park": {
+                        councillor: "Councillor Neethan Shan <em>(elected in 2025 by-election)</em>",
+                        photo: { src: "councillor photos/toronto/W25 Neethan Shan .jpg", credit: "Photo credit: City of Toronto" },
+                        turnout: "<strong>2022 Turnout:</strong> 27%",
+                        listtitle: "<u>Top 5 countries of birth</u>",  
+                        list: [
+                            "Sri Lanka: 10,115",
+                            "Philippines: 6,765",
+                            "India: 5,925",
+                            "Guyana: 4,335",
+                            "Jamaica: 3,490"
+                        ]
+                       },"MI - Ward 1": {
+                            councillor: "Councillor Stephen Dasko",
+                            photo: { src: "councillor photos/mississauga/W1 Stephen Dasko.jpg", credit: "Photo credit: City of Mississauga" },
+                            turnout: "<strong>Number of votes in ward:</strong> 7,925",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Poland: 1,715",
+                                "United Kingdom: 1,015",
+                                "Portugal: 990",
+                                "India: 785",
+                                "Italy: 700"
+                            ]
+                        },"MI - Ward 2": {
+                            councillor: "Councillor Alvin Tedjo",
+                            photo: { src: "councillor photos/mississauga/W2 Alvin Tedjo.jpeg", credit: "Photo credit: City of Mississauga" },
+                            turnout: "<strong>Number of votes in ward:</strong> 9,078",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "India: 1,510",
+                                "Poland: 1,440",
+                                "Philippines: 1,410",
+                                "United Kingdom: 1,265",
+                                "China: 1,260"
+                            ]},"MI - Ward 3": {
+                            councillor: "Councillor Chris Fonseca",
+                            photo: { src: "councillor photos/mississauga/W3 Chris Fonseca.jpg", credit: "Photo credit: City of Mississauga" },
+                            turnout: "<strong>Number of votes in ward:</strong> 9,360",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Poland: 3,195",
+                                "Philippines: 2,005",
+                                "Pakistan: 1,790",
+                                "India: 1,740",
+                                "Ukraine: 1,625"
+                            ]},"MI - Ward 4": {
+                            councillor: "Councillor John Kovac",
+                            photo: { src: "councillor photos/mississauga/W4 John Kovac.jpg", credit: "Photo credit: City of Mississauga" },
+                            turnout: "<strong>Number of votes in ward:</strong> 8,476",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "India: 7,095",
+                                "Philippines: 3,750",
+                                "Pakistan: 3,130",
+                                "Poland: 2,280",
+                                "China: 2,280"
+                            ]},"MI - Ward 5": {
+                            councillor: "Councillor Natalie Hart <em>(elected in 2024 by-election)</em>",
+                            photo: { src: "councillor photos/mississauga/W5 Natalie Hart.jpg", credit: "Photo credit: City of Mississauga" },
+                            turnout: "<strong>Number of votes in ward:</strong> 8,307",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "India: 13,170",
+                                "Pakistan: 2,930",
+                                "Jamaica: 2,895",
+                                "Philippines: 2,695",
+                                "China: 2,045"
+                            ]},"MI - Ward 6": {
+                            councillor: "Councillor Joe Horneck",
+                            photo: { src: "councillor photos/mississauga/W6 Joe Horneck.jpg", credit: "Photo credit: City of Mississauga" },
+                            turnout: "<strong>Number of votes in ward:</strong> 11,762",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "India: 7,425",
+                                "Pakistan: 5,105",
+                                "China: 4,430",
+                                "Philippines: 4,035",
+                                "Vietnam: 1,960"
+                            ]},"MI - Ward 7": {
+                            councillor: "Councillor Dipika Damerla",
+                            photo: { src: "councillor photos/mississauga/W7 Dipika Damerla.jpg", credit: "Photo credit: City of Mississauga" },
+                            turnout: "<strong>Number of votes in ward:</strong> 8,995",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "India: 7,075",
+                                "Philippines: 4,760",
+                                "Poland: 3,375",
+                                "Pakistan: 2,855",
+                                "China: 2,045"
+                            ]},"MI - Ward 8": {
+                            councillor: "Councillor Matt Mahoney",
+                            photo: { src: "councillor photos/mississauga/W8 Matt Mahoney.jpg", credit: "Photo credit: City of Mississauga" },
+                            turnout: "<strong>Number of votes in ward:</strong> 9,964",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "India: 3,885",
+                                "Pakistan: 3,565",
+                                "China: 2,975",
+                                "Philippines: 2,245",
+                                "Poland: 1,695"
+                            ]},"MI - Ward 9": {
+                            councillor: "Councillor Martin Reid",
+                            photo: { src: "councillor photos/mississauga/W9 Martin Reid.jpeg", credit: "Photo credit: City of Mississauga" },
+                            turnout: "<strong>Number of votes in ward:</strong> 10,743",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "India: 3,870",
+                                "Pakistan: 2,825",
+                                "China: 2,270",
+                                "Philippines: 2,025",
+                                "United Kingdom: 1,165"
+                            ]},"MI - Ward 10": {
+                            councillor: "Councillor Sue McFadden",
+                            photo: { src: "councillor photos/mississauga/W10 Sue McFadden.jpg", credit: "Photo credit: City of Mississauga" },
+                            turnout: "<strong>Number of votes in ward:</strong> 11,402",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "Sri Lanka: 7,265",
+                                "Pakistan: 6,605",
+                                "Vietnam: 2,985",
+                                "Hong Kong: 2,335",
+                                "Portugal: 1,110"
+                            ]},"MI - Ward 11": {
+                            councillor: "Councillor Brad Butt",
+                            photo: { src: "councillor photos/mississauga/W11.jpg", credit: "Photo credit: City of Mississauga" },
+                            turnout: "<strong>Number of votes in ward:</strong> 9,381",
+                            listtitle: "<u>Top 5 countries of birth</u>",  
+                            list: [
+                                "India: 8,105",
+                                "Pakistan: 3,455",
+                                "Philippines: 2,120",
+                                "China: 1,385",
+                                "Vietnam: 1,125"
+                            ]  
+                        },"BR - Ward 1": {
+                            councillors: [
+                                {
+                                    name: "Regional Councillor Paul Vicente",
+                                    photo: { src: "councillor photos/brampton/W1 5 Paul Vicente.jpg", credit: "Photo credit: City of Brampton" },
+                                },
+                                {
+                                    name: "City Councillor Rowena Santos",
+                                    photo: { src: "councillor photos/brampton/W1 5 Rowena Santos.jpg", credit: "Photo credit: City of Brampton" },
+                                }
+                                ],
+                            turnout: "<strong>Number of votes in wards 1 & 5:</strong> 12,975",
+                            listtitle: "<u>Top 5 countries of birth <em>(city-wide)</em></u>",  
+                            list: [
+                                "India: 159,580",
+                                "Jamaica: 22,225",
+                                "Pakistan: 20,380",
+                                "Philippines: 15,265",
+                                "Guyana: 13,895"
+                            ] 
+                        }
+                        ,"BR - Ward 2": {
+                            councillors: [
+                                {
+                                    name: "Regional Councillor Michael Palleschi",
+                                    photo: { src: "councillor photos/brampton/W2 6 Michael Palleschi.jpg", credit: "Photo credit: City of Brampton" },
+                                },
+                                {
+                                    name: "City Councillor Navjit Kaur Brar",
+                                    photo: { src: "councillor photos/brampton/W2 6 Navjit Kaur Brar.jpg", credit: "Photo credit: City of Brampton" },
+                                }
+                                ],
+                            turnout: "<strong>Number of votes in wards 2 & 6:</strong> 14,658",
+                            listtitle: "<u>Top 5 countries of birth <em>(city-wide)</em></u>",  
+                            list: [
+                                "India: 159,580",
+                                "Jamaica: 22,225",
+                                "Pakistan: 20,380",
+                                "Philippines: 15,265",
+                                "Guyana: 13,895"
+                            ]    
+                        },"BR - Ward 3": {
+                            councillors: [
+                                {
+                                    name: "Regional Councillor Dennis Keenan",
+                                    photo: { src: "councillor photos/brampton/W3 4 Dennis Keenan.jpg", credit: "Photo credit: City of Brampton" },
+                                },
+                                {
+                                    name: "City Councillor Martin Medeiros",
+                                    photo: { src: "councillor photos/brampton/W3 4 Martin Medeiros.jpg", credit: "Photo credit: City of Brampton" },
+                                }
+                                ],
+                            turnout: "<strong>Number of votes in wards 3 & 4:</strong> 12,605",
+                            listtitle: "<u>Top 5 countries of birth <em>(city-wide)</em></u>",  
+                            list: [
+                                "India: 159,580",
+                                "Jamaica: 22,225",
+                                "Pakistan: 20,380",
+                                "Philippines: 15,265",
+                                "Guyana: 13,895"
+                            ] 
+                    },"BR - Ward 4": {
+                            councillors: [
+                                {
+                                    name: "Regional Councillor Dennis Keenan",
+                                    photo: { src: "councillor photos/brampton/W3 4 Dennis Keenan.jpg", credit: "Photo credit: City of Brampton" },
+                                },
+                                {
+                                    name: "City Councillor Martin Medeiros",
+                                    photo: { src: "councillor photos/brampton/W3 4 Martin Medeiros.jpg", credit: "Photo credit: City of Brampton" },
+                                }
+                                ],
+                            turnout: "<strong>Number of votes in wards 3 & 4:</strong> 12,605",
+                            listtitle: "<u>Top 5 countries of birth <em>(city-wide)</em></u>",  
+                            list: [
+                                "India: 159,580",
+                                "Jamaica: 22,225",
+                                "Pakistan: 20,380",
+                                "Philippines: 15,265",
+                                "Guyana: 13,895"
+                            ] 
+                    },"BR - Ward 5": {
+                            councillors: [
+                                {
+                                    name: "Regional Councillor Paul Vicente",
+                                    photo: { src: "councillor photos/brampton/W1 5 Paul Vicente.jpg", credit: "Photo credit: City of Brampton" },
+                                },
+                                {
+                                    name: "City Councillor Rowena Santos",
+                                    photo: { src: "councillor photos/brampton/W1 5 Rowena Santos.jpg", credit: "Photo credit: City of Brampton" },
+                                }
+                                ],
+                            turnout: "<strong>Number of votes in wards 1 & 5:</strong> 12,975",
+                            listtitle: "<u>Top 5 countries of birth <em>(city-wide)</em></u>",  
+                            list: [
+                                "India: 159,580",
+                                "Jamaica: 22,225",
+                                "Pakistan: 20,380",
+                                "Philippines: 15,265",
+                                "Guyana: 13,895"
+                            ] 
+                        },"BR - Ward 6": {
+                            councillors: [
+                                {
+                                    name: "Regional Councillor Michael Palleschi",
+                                    photo: { src: "councillor photos/brampton/W2 6 Michael Palleschi.jpg", credit: "Photo credit: City of Brampton" },
+                                },
+                                {
+                                    name: "City Councillor Navjit Kaur Brar",
+                                    photo: { src: "councillor photos/brampton/W2 6 Navjit Kaur Brar.jpg", credit: "Photo credit: City of Brampton" },
+                                }
+                                ],
+                            turnout: "<strong>Number of votes in wards 2 & 6:</strong> 14,658",
+                            listtitle: "<u>Top 5 countries of birth <em>(city-wide)</em></u>",  
+                            list: [
+                                "India: 159,580",
+                                "Jamaica: 22,225",
+                                "Pakistan: 20,380",
+                                "Philippines: 15,265",
+                                "Guyana: 13,895"
+                            ]    
+                        },"BR - Ward 7": {
+                            councillors: [
+                                {
+                                    name: "Regional Councillor Gael Miles <em>(appointed in 2026)</em>",
+                                    photo: { src: "councillor photos/brampton/W7 8 Gael Miles .jpeg", credit: "Photo credit: City of Brampton" },
+                                },
+                                {
+                                    name: "City Councillor Rod Power",
+                                    photo: { src: "councillor photos/brampton/W7 8 Rod Power.jpg", credit: "Photo credit: City of Brampton" },
+                                }
+                                ],
+                            turnout: "<strong>Number of votes in wards 7 & 8:</strong> 10,988",
+                            listtitle: "<u>Top 5 countries of birth <em>(city-wide)</em></u>",  
+                            list: [
+                                "India: 159,580",
+                                "Jamaica: 22,225",
+                                "Pakistan: 20,380",
+                                "Philippines: 15,265",
+                                "Guyana: 13,895"
+                            ]    
+                        },"BR - Ward 8": {
+                            councillors: [
+                                {
+                                    name: "Regional Councillor Gael Miles <em>(appointed in 2026)</em>",
+                                    photo: { src: "councillor photos/brampton/W7 8 Gael Miles .jpeg", credit: "Photo credit: City of Brampton" },
+                                },
+                                {
+                                    name: "City Councillor Rod Power",
+                                    photo: { src: "councillor photos/brampton/W7 8 Rod Power.jpg", credit: "Photo credit: City of Brampton" },
+                                }
+                                ],
+                            turnout: "<strong>Number of votes in wards 7 & 8:</strong> 10,988",
+                            listtitle: "<u>Top 5 countries of birth <em>(city-wide)</em></u>",  
+                            list: [
+                                "India: 159,580",
+                                "Jamaica: 22,225",
+                                "Pakistan: 20,380",
+                                "Philippines: 15,265",
+                                "Guyana: 13,895"
+                            ]    
+                        },"BR - Ward 9": {
+                            councillors: [
+                                {
+                                    name: "Regional Councillor Gurpartap Singh Toor",
+                                    photo: { src: "councillor photos/brampton/W9 10 Gurpartap Singh Toor.jpg", credit: "Photo credit: City of Brampton" },
+                                },
+                                {
+                                    name: "City Councillor Harkirat Singh",
+                                    photo: { src: "councillor photos/brampton/W9 10 Harkirat Singh.jpg", credit: "Photo credit: City of Brampton" },
+                                }
+                                ],
+                            turnout: "<strong>Number of votes in wards 9 & 10:</strong> 15,162",
+                            listtitle: "<u>Top 5 countries of birth <em>(city-wide)</em></u>",  
+                            list: [
+                                "India: 159,580",
+                                "Jamaica: 22,225",
+                                "Pakistan: 20,380",
+                                "Philippines: 15,265",
+                                "Guyana: 13,895"
+                            ]    
+                        },"BR - Ward 10": {
+                            councillors: [
+                                {
+                                    name: "Regional Councillor Gurpartap Singh Toor",
+                                    photo: { src: "councillor photos/brampton/W9 10 Gurpartap Singh Toor.jpg", credit: "Photo credit: City of Brampton" },
+                                },
+                                {
+                                    name: "City Councillor Harkirat Singh",
+                                    photo: { src: "councillor photos/brampton/W9 10 Harkirat Singh.jpg", credit: "Photo credit: City of Brampton" },
+                                }
+                                ],
+                            turnout: "<strong>Number of votes in wards 9 & 10:</strong> 15,162",
+                            listtitle: "<u>Top 5 countries of birth <em>(city-wide)</em></u>",  
+                            list: [
+                                "India: 159,580",
+                                "Jamaica: 22,225",
+                                "Pakistan: 20,380",
+                                "Philippines: 15,265",
+                                "Guyana: 13,895"
+                            ]    
+                        }
+                    };
+                        for (var key in extraInfo) {
+                        var entry = extraInfo[key];
+                        if (entry.photo) new Image().src = entry.photo.src;
+                        if (entry.councillors) {
+                        entry.councillors.forEach(function(c) {
+                        if (c.photo) new Image().src = c.photo.src;
+                    });
+                }
+            }
+            var defaultHtml = 'Hover over a ward to see details. Click a ward to keep it showing.';
+            var pinnedHtml = null;
+
+            var infoBox = L.control({ position: 'topright' });
+
+            infoBox.onAdd = function() {
+                this._div = L.DomUtil.create('div', 'info-box');
+                L.DomEvent.disableScrollPropagation(this._div);
+                this._div.innerHTML = defaultHtml;
+                return this._div;
+            };
+
+            infoBox.update = function(html) {
+                this._div.innerHTML = html;
+            };
+
+            infoBox.addTo(map);
+
+            // Clicking empty map clears a pinned ward
+            map.on('click', function() {
+                pinnedHtml = null;
+                infoBox.update(defaultHtml);
+            });
+            var cityPrefixes = { 'TO - ': 'toronto', 'MI - ': 'mississauga', 'BR - ': 'brampton' };
+            var cityLayers = { toronto: [], mississauga: [], brampton: [] };
+
+            function cityOf(name) {
+            for (var p in cityPrefixes) {
+            if (name && name.indexOf(p) === 0) return cityPrefixes[p];
+             }
+             return null;
+}
+            var cityMapConfigs = {
+                toronto: {
+                    prefix: 'TO - ',
+                    strongestColor: '#274490', // Toronto Blue
+                },
+                mississauga: {
+                    prefix: 'MI - ',
+                    strongestColor: '#F5821F', // Mississauga Orange
+                },
+                brampton: {
+                    prefix: 'BR - ',
+                    strongestColor: '#B3BD3F', // Brampton Olive/Green
+                }
+            };
+        // Loop through each city and build its own choropleth layer with unique color scale
+Object.keys(cityMapConfigs).forEach(function(cityKey) {
+    var config = cityMapConfigs[cityKey];
+
+    L.choropleth(tmbmap, {
+        // Filter feature data so each layer only renders its respective city's wards
+        filter: function(feature) {
+            var name = feature.properties.AREA_NAME;
+            return name && name.indexOf(config.prefix) === 0;
+        },
+        valueProperty: 'VM',
+        scale: ['#ffffff', config.strongestColor], // Gradient from white to strongest city color
+        steps: 5,
+        mode: 'q', // Quantile mode
+        style: {
+            color: '#fff',
+            weight: 1,
+            fillOpacity: 0.85
+        },
+        onEachFeature: function(feature, layer) {
+            var name = feature.properties.AREA_NAME;
+            var info = extraInfo[name];
+            
+            // Store reference for city zooming/bounds calculation
+            if (cityLayers[cityKey]) {
+                cityLayers[cityKey].push(layer);
+            }
+
+            // Title
+            var html = '<strong>' + name + '</strong>';
+
+            // --- Tiered VM Box ---
+            var vmVal = feature.properties.VM;
+            if (vmVal !== undefined && vmVal !== null) {
+                var displayVm = typeof vmVal === 'number' 
+                    ? vmVal.toLocaleString() 
+                    : vmVal;
+
+                html += '<div style="margin:8px 0; padding:8px 12px; background:#f4f6f8; border-left:4px solid ' + config.strongestColor + '; border-radius:0 4px 4px 0;">';
+                html += '<div style="font-size:10px; font-weight:600; text-transform:uppercase; color:#666; letter-spacing:0.5px;">Visible Minority Population</div>';
+                html += '<div style="font-size:14px; font-weight:bold; color:#222; margin-top:2px;">' + displayVm + '</div>';
+                html += '</div>';
+            }
+
+            if (info) {
+                if (info.councillors) {
+                    // Two (or more) councillors, shown side by side
+                    html += '<div style="display:flex; gap:8px; margin-top:6px;">';
+                    info.councillors.forEach(function(c) {
+                        html += '<div style="flex:1; min-width:0;">';
+                        if (c.photo) {
+                            html += '<img src="' + c.photo.src + '" style="width:100%; display:block;">';
+                        }
+                        html += '<div style="font-size:12px; font-weight:bold; margin-top:4px;">' + c.name + '</div>';
+                        if (c.photo && c.photo.credit) {
+                            html += '<div style="font-size:10px; color:#777;">' + c.photo.credit + '</div>';
+                        }
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                } else {
+                    // Councillor name
+                    if (info.councillor) {
+                        html += '<br>' + info.councillor;
+                    }
+
+                    // Photo and credit
+                    if (info.photo) {
+                        html += '<br><img src="' + info.photo.src + '" style="width:200px; display:block;">';
+                        html += '<div style="font-size:11px; margin-left:20px; color:#555;">' + info.photo.credit + '</div>';
+                    }
+                }
+
+                // Turnout line
+                if (info.turnout) {
+                    html += '<p style="margin:8px 0;">' + info.turnout + '</p>';
+                }
+
+                // Subheading for the list
+                if (info.listtitle) {
+                    html += '<div style="font-size:12px; font-weight:bold; color:#555; margin-top:8px;">' + info.listtitle + '</div>';
+                }
+
+                // The list
+                if (info.list) {
+                    html += '<ul style="margin:0; padding-left:20px;">';
+                    info.list.forEach(function(item) {
+                        html += '<li>' + item + '</li>';
+                    });
+                    html += '</ul>';
+                }
+            }
+
+            layer.bindTooltip(name, { sticky: true });
+            layer.on({
+                mouseover: function() {
+                    if (!pinnedHtml) infoBox.update(html);
+                },
+                mouseout: function() {
+                    infoBox.update(pinnedHtml || defaultHtml);
+                },
+                click: function(e) {
+                    L.DomEvent.stopPropagation(e);
+                    pinnedHtml = html;
+                    infoBox.update(html);
+                }
+            });
+        }
+    }).addTo(map);
+});
+// ---------- City outlines (neutral line with a white casing) ----------
+var cityFeatures = tmbmap.features || tmbmap;
+var mergedCities = [];
+
+Object.keys(cityMapConfigs).forEach(function(cityKey) {
+    var prefix = cityMapConfigs[cityKey].prefix;
+    var wards = cityFeatures.filter(function(f) {
+        var n = f.properties.AREA_NAME;
+        return n && n.indexOf(prefix) === 0;
+    });
+    if (!wards.length) return;
+
+    try {
+        var merged = turf.buffer(wards[0], 0.03, { units: 'kilometers' });
+        for (var i = 1; i < wards.length; i++) {
+            merged = turf.union(merged, turf.buffer(wards[i], 0.03, { units: 'kilometers' }));
+        }
+        mergedCities.push(merged);
+    } catch (err) {
+        console.error('Could not outline ' + cityKey, err);
+    }
+});
+            // this is the black border line of the maps!!!!
+            [
+                { color: '#3a3f47', weight: 2.8, opacity: 1 }
+            ].forEach(function(s) {
+                mergedCities.forEach(function(m) {
+                    L.geoJSON(m, {
+                        interactive: false,
+                        style: { color: s.color, weight: s.weight, opacity: s.opacity, fill: false, lineJoin: 'round' }
+                    }).addTo(map);
+                });
+        });
+                // ADD STORY HEADLINES AND LINKS HERE !!!!!!
+                var LABEL_MAX_ZOOM = 10; // city labels show at this zoom or lower
+
+                var cityConfig = {
+                    toronto: {
+                        label: 'Toronto',
+                        stories: []
+                    },
+                    mississauga: {
+                        label: 'Mississauga',
+                        stories: [
+                            { title: 'Mississauga mayoral candidate seeks common ground among diverse electoral region', url: 'https://newcanadianmedia.ca/mississauga-mayoral-candidate-seeks-common-ground-among-diverse-electoral-region/' }
+                        ]
+                    },
+                    brampton: {
+                        label: 'Brampton',
+                        stories: []
+                    }
+                };
+
+                var cityBounds = {};
+                var cityMarkers = {};
+                var allBounds = L.latLngBounds([]);
+
+                Object.keys(cityConfig).forEach(function(key) {
+                    var layers = cityLayers[key];
+                    if (!layers.length) return; // no wards matched this city's prefix
+
+                    var b = L.latLngBounds([]);
+                    layers.forEach(function(l) { b.extend(l.getBounds()); });
+                    cityBounds[key] = b;
+                    allBounds.extend(b);
+
+                    cityMarkers[key] = L.marker(b.getCenter(), {
+                        icon: L.divIcon({
+                            className: '',
+                            html: '<div class="city-label">' + cityConfig[key].label + '</div>',
+                            iconSize: [0, 0]
+                        }),
+                        keyboard: false
+                    }).on('click', function(e) {
+                        L.DomEvent.stopPropagation(e);
+                        selectCity(key);
+                    });
+            });
+                // ---------- Limit how far people can pan and zoom out ----------
+                if (allBounds.isValid()) {
+                    var panLimit = allBounds.pad(0.25); // 25% breathing room around the three cities
+                    map.setMaxBounds(panLimit);
+                    map.setMinZoom(map.getBoundsZoom(panLimit));
+                }
+
+                // Stories box (bottom left)
+                var storiesBox = L.control({ position: 'topleft' });
+
+                storiesBox.onAdd = function() {
+                    this._div = L.DomUtil.create('div', 'stories-box');
+                    this._div.style.display = 'none';
+                    L.DomEvent.disableClickPropagation(this._div);
+                    L.DomEvent.disableScrollPropagation(this._div);
+                    L.DomEvent.on(this._div, 'click', function(e) {
+                        if (e.target.classList.contains('stories-close')) storiesBox.hide();
+                    });
+                    return this._div;
+                };
+
+                storiesBox.show = function(key) {
+                    var keys = (key === 'all') ? Object.keys(cityConfig) : [key];
+                    var html = '<span class="stories-close">&times;</span>';
+                    html += '<h3>' + (key === 'all' ? 'All coverage' : cityConfig[key].label + ' coverage') + '</h3>';
+
+                    keys.forEach(function(k) {
+                        var cfg = cityConfig[k];
+                        if (key === 'all') {
+                            html += '<div class="stories-city">' + cfg.label + '</div>';
+                        }
+                        if (cfg.stories.length) {
+                            html += '<ul>';
+                            cfg.stories.forEach(function(s) {
+                                html += '<li><a href="' + s.url + '" target="_blank" rel="noopener">' + s.title + '</a></li>';
+                            });
+                            html += '</ul>';
+                        } else {
+                            html += '<em>Stories coming soon.</em>';
+                        }
+                    });
+
+                    this._div.innerHTML = html;
+                    this._div.style.display = 'block';
+                };
+
+                storiesBox.hide = function() {
+                    this._div.style.display = 'none';
+                    setActive(null);
+                };
+
+                // Region buttons (top left, under the zoom buttons)
+                var regionBar = L.control({ position: 'topleft' });
+
+                regionBar.onAdd = function() {
+                    var div = L.DomUtil.create('div', 'region-bar');
+                    L.DomEvent.disableClickPropagation(div);
+                    var html = '<button data-city="all">All three</button>';
+                    Object.keys(cityConfig).forEach(function(key) {
+                        html += '<button data-city="' + key + '">' + cityConfig[key].label + '</button>';
+                    });
+                    div.innerHTML = html;
+                    L.DomEvent.on(div, 'click', function(e) {
+                        var key = e.target.getAttribute('data-city');
+                        if (!key) return;
+                        if (key === 'all') resetRegions(); else selectCity(key);
+                    });
+                    return div;
+                };
+
+                regionBar.addTo(map);
+                storiesBox.addTo(map);
+
+                function setActive(key) {
+                    document.querySelectorAll('.region-bar button').forEach(function(btn) {
+                        btn.classList.toggle('active', btn.getAttribute('data-city') === key);
+                    });
+                }
+
+                function selectCity(key) {
+                    if (!cityBounds[key]) return;
+                    map.fitBounds(cityBounds[key], { padding: [30, 30] });
+                    storiesBox.show(key);
+                    setActive(key);
+                }
+
+                function resetRegions() {
+                    map.fitBounds(allBounds, { padding: [30, 30] });
+                    storiesBox.show('all');
+                    setActive('all');
+                }
+
+                // Show city labels only when zoomed out, so they don't sit on top of ward shapes
+                function updateCityLabels() {
+                    var show = map.getZoom() <= LABEL_MAX_ZOOM;
+                    Object.keys(cityMarkers).forEach(function(key) {
+                        if (show) cityMarkers[key].addTo(map);
+                        else map.removeLayer(cityMarkers[key]);
+                    });
+                }
+
+                map.on('zoomend', updateCityLabels);
+                updateCityLabels();
+        map.fitBounds(allBounds, { padding: [10, 10] });
+</script>
 </body>
 </html>
